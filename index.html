@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harmonogram odbioru odpadów Kobylanka</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        select, input { width: 100%; padding: 10px; margin: 10px 0; font-size: 16px; }
+        #loading { color: #666; }
+        #dates { background: #f5f5f5; padding: 20px; border-radius: 8px; }
+        .nearest { font-size: 2em; font-weight: bold; color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        ul { list-style-type: none; padding: 0; }
+        li { padding: 5px 0; border-bottom: 1px solid #ddd; }
+        .error { color: #d32f2f; }
+        h1 { display: flex; align-items: center; gap: 10px; }
+        .waste-type { background: #2196f3; color: white; padding: 5px 10px; border-radius: 20px; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+    Strona niepowiązana z gminą Kobylanka, może zawierać błędy, kontakt do autora info(małpka)kobylanka(kropka)net
+    <h1>
+        <span>Harmonogram odbioru odpadów Kobylanka 2026</span>
+        <span id="wasteTypeLabel" class="waste-type">Zmieszane</span>
+    </h1>
+    
+    <select id="wasteTypeSelect">
+        <option value="odpady-zmieszane.csv">Zmieszane</option>
+        <option value="odpady-bio.csv">Bio</option>
+        <option value="odpady-selektywne.csv">Selektywne</option>
+    </select>
+    
+    <div id="loading">Ładowanie danych...</div>
+    <select id="townSelect" disabled>
+        <option value="">Wybierz lokalizację...</option>
+    </select>
+    <div id="dates" style="display: none;">
+        <h3>Daty dla wybranej lokalizacji:</h3>
+        <div id="nearestDate" class="nearest"></div>
+        <ul id="dateList"></ul>
+    </div>
+
+    <script>
+        const wasteTypeSelect = document.getElementById('wasteTypeSelect');
+        const wasteTypeLabel = document.getElementById('wasteTypeLabel');
+        const townSelect = document.getElementById('townSelect');
+        const datesDiv = document.getElementById('dates');
+        const nearestDiv = document.getElementById('nearestDate');
+        const dateList = document.getElementById('dateList');
+        const loadingDiv = document.getElementById('loading');
+
+        let data = [];
+        let currentFile = 'odpady-zmieszane.csv';
+
+        // Mapa nazw plików na etykiety
+        const fileLabels = {
+            'odpady-zmieszane.csv': 'Zmieszane',
+            'odpady-bio.csv': 'Bio',
+            'odpady-selektywne.csv': 'Selektywne'
+        };
+
+        wasteTypeSelect.addEventListener('change', function() {
+            currentFile = this.value;
+            wasteTypeLabel.textContent = fileLabels[currentFile];
+            loadCSV();
+        });
+
+        // Automatyczne ładowanie przy starcie
+        loadCSV();
+
+        function loadCSV() {
+            loadingDiv.style.display = 'block';
+            loadingDiv.textContent = `Ładowanie ${fileLabels[currentFile]}...`;
+            townSelect.disabled = true;
+            townSelect.value = '';
+            datesDiv.style.display = 'none';
+
+            fetch(currentFile)
+                .then(response => {
+                    if (!response.ok) throw new Error(`Nie znaleziono ${currentFile}`);
+                    return response.text();
+                })
+                .then(parseCSV)
+                .catch(error => {
+                    loadingDiv.innerHTML = `<span class="error">Błąd: ${error.message}</span>`;
+                    townSelect.disabled = true;
+                });
+        }
+
+        function parseCSV(text) {
+            data = text.split('\n').map(line => {
+                if (!line.trim()) return null;
+                const parts = line.split(',');
+                const town = parts[0].trim();
+                const rest = parts.slice(1).join(',').trim();
+                const datesStr = rest.replace(/[^\d\-]/g, '');
+                const dates = [];
+                for (let i = 0; i < datesStr.length; i += 10) {
+                    const dateStr = datesStr.substr(i, 10);
+                    if (dateStr.match(/\d{4}-\d{2}-\d{2}/)) {
+                        dates.push(dateStr);
+                    }
+                }
+                return { town, dates };
+            }).filter(Boolean);
+
+            const uniqueTowns = [...new Set(data.map(row => row.town))].sort();
+
+            townSelect.innerHTML = '<option value="">Wybierz lokalizację...</option>';
+            uniqueTowns.forEach(town => {
+                const option = document.createElement('option');
+                option.value = town;
+                option.textContent = town;
+                townSelect.appendChild(option);
+            });
+            townSelect.disabled = false;
+            loadingDiv.style.display = 'none';
+        }
+
+        townSelect.addEventListener('change', function() {
+            const selectedTown = this.value;
+            const townData = data.find(row => row.town === selectedTown);
+            if (!townData) return;
+
+            const now = new Date();
+            let nearest = null;
+            let minDiff = Infinity;
+
+            townData.dates.forEach(dateStr => {
+                const date = new Date(dateStr + 'T00:00:00');
+                if (date > now) {
+                    const diff = date - now;
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        nearest = dateStr;
+                    }
+                }
+            });
+
+            dateList.innerHTML = '';
+            townData.dates.forEach(dateStr => {
+                const li = document.createElement('li');
+                li.textContent = dateStr;
+                dateList.appendChild(li);
+            });
+
+            if (nearest) {
+                nearestDiv.textContent = `NAJBLIŻSZY TERMIN: ${nearest}`;
+                nearestDiv.title = `Za ${Math.round(minDiff / (1000*60*60*24))} dni`;
+            } else {
+                nearestDiv.textContent = 'Brak przyszłych terminów.';
+            }
+
+            datesDiv.style.display = 'block';
+        });
+    </script>
+</body>
+</html>
