@@ -11,196 +11,258 @@
             margin: 0 auto; 
             padding: 20px; 
         }
-        select, input { 
-            width: 100%; 
-            padding: 10px; 
-            margin: 10px 0; 
-            font-size: 16px; 
+        select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 16px;
         }
-        #loading { 
-            color: #666; 
+        #loading { color: #666; }
+        #dates {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
         }
-        #dates { 
-            background: #f5f5f5; 
-            padding: 20px; 
-            border-radius: 8px; 
+        .nearest {
+            font-size: 2em;
+            font-weight: bold;
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
         }
-        .nearest { 
-            font-size: 2em; 
-            font-weight: bold; 
-            color: #d32f2f; 
-            background: #ffebee; 
-            padding: 10px; 
-            border-radius: 4px; 
-            margin: 10px 0; 
+        ul { list-style-type: none; padding: 0; }
+        li { padding: 5px 0; border-bottom: 1px solid #ddd; }
+        .error { color: #d32f2f; }
+        h1 { display: flex; align-items: center; gap: 10px; }
+        .waste-type {
+            background: #2196f3;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8em;
         }
-        ul { 
-            list-style-type: none; 
-            padding: 0; 
-        }
-        li { 
-            padding: 5px 0; 
-            border-bottom: 1px solid #ddd; 
-        }
-        .error { 
-            color: #d32f2f; 
-        }
-        h1 { 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-        }
-        .waste-type { 
-            background: #2196f3; 
-            color: white; 
-            padding: 5px 10px; 
-            border-radius: 20px; 
-            font-size: 0.8em; }
         .warning {
             background-color: #FDF7DF;
             border: 1px solid #FEEC6F;
-            padding: 5px 10px; 
+            padding: 10px;
+            margin-bottom: 10px;
             color: #C9971C;
         }
+        #calendarBtn {
+            display:none;
+            width:100%;
+            padding:12px;
+            margin-bottom:10px;
+            background:#4caf50;
+            color:white;
+            border:none;
+            border-radius:8px;
+            cursor:pointer;
+            font-size:16px;
+        }
+        #calendarBtn:hover { background:#449d48; }
     </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css" />
 </head>
 <body>
-    <a class="github-fork-ribbon" href="https://github.com/alchemyx/odpady-kobylanka" data-ribbon="Fork me on GitHub" title="Fork me on GitHub">Fork me on GitHub</a>
-    <div class="warning">Strona niepowiązana z gminą Kobylanka, <em>może zawierać błędy</em>.<br/>Informacje pobrane ze strony <a href="https://kobylanka.pl/gospodarka-odpadami/harmonogram-odbioru-odpadow-komunalnych/">Harmonogram odbioru odpadów komunalnych</a><br/>Kontakt do autora info(małpka)kobylanka(kropka)net</div>
-    <h1>
-        <span>Harmonogram odbioru odpadów Kobylanka 2026</span>
-        <span id="wasteTypeLabel" class="waste-type">Zmieszane</span>
-    </h1>
-    
-    <select id="wasteTypeSelect">
-        <option value="odpady-zmieszane.csv">Zmieszane</option>
-        <option value="odpady-bio.csv">Bio</option>
-        <option value="odpady-selektywne.csv">Selektywne</option>
-    </select>
-    
-    <div id="loading">Ładowanie danych...</div>
-    <select id="townSelect" disabled>
-        <option value="">Wybierz lokalizację...</option>
-    </select>
-    <div id="dates" style="display: none;">
-        <h3>Daty dla wybranej lokalizacji:</h3>
-        <div id="nearestDate" class="nearest"></div>
-        <ul id="dateList"></ul>
-    </div>
+<div class="warning">
+    Strona niepowiązana z gminą Kobylanka. Może zawierać błędy.
+</div>
+<h1>
+    <span>Harmonogram odbioru odpadów Kobylanka 2026</span>
+    <span id="wasteTypeLabel" class="waste-type">Zmieszane</span>
+</h1>
 
-    <script>
-        const wasteTypeSelect = document.getElementById('wasteTypeSelect');
-        const wasteTypeLabel = document.getElementById('wasteTypeLabel');
-        const townSelect = document.getElementById('townSelect');
-        const datesDiv = document.getElementById('dates');
-        const nearestDiv = document.getElementById('nearestDate');
-        const dateList = document.getElementById('dateList');
-        const loadingDiv = document.getElementById('loading');
+<select id="wasteTypeSelect">
+    <option value="odpady-zmieszane.csv">Zmieszane</option>
+    <option value="odpady-bio.csv">Bio</option>
+    <option value="odpady-selektywne.csv">Selektywne</option>
+</select>
 
-        let data = [];
-        let currentFile = 'odpady-zmieszane.csv';
+<div id="loading">Ładowanie danych...</div>
+<select id="townSelect" disabled>
+    <option value="">Wybierz lokalizację...</option>
+</select>
+<button id="calendarBtn">📅 Dodaj do kalendarza (ICS)</button>
+<div id="dates" style="display:none;">
+    <h3>Daty dla wybranej lokalizacji:</h3>
+    <div id="nearestDate" class="nearest"></div>
+    <ul id="dateList"></ul>
+</div>
 
-        // Mapa nazw plików na etykiety
-        const fileLabels = {
-            'odpady-zmieszane.csv': 'Zmieszane',
-            'odpady-bio.csv': 'Bio',
-            'odpady-selektywne.csv': 'Selektywne'
-        };
+<script>
+    const wasteTypeSelect = document.getElementById('wasteTypeSelect');
+    const wasteTypeLabel = document.getElementById('wasteTypeLabel');
+    const townSelect = document.getElementById('townSelect');
+    const datesDiv = document.getElementById('dates');
+    const nearestDiv = document.getElementById('nearestDate');
+    const dateList = document.getElementById('dateList');
+    const loadingDiv = document.getElementById('loading');
+    const calendarBtn = document.getElementById("calendarBtn");
 
-        wasteTypeSelect.addEventListener('change', function() {
-            currentFile = this.value;
-            wasteTypeLabel.textContent = fileLabels[currentFile];
-            loadCSV();
-        });
+    let data = [];
+    let currentFile = 'odpady-zmieszane.csv';
 
-        // Automatyczne ładowanie przy starcie
+    const fileLabels = {
+        'odpady-zmieszane.csv': 'Zmieszane',
+        'odpady-bio.csv': 'Bio',
+        'odpady-selektywne.csv': 'Selektywne'
+    };
+
+    const icsColors = {
+        'Zmieszane': '#E53935',
+        'Bio': '#43A047',
+        'Selektywne': '#1E88E5'
+    };
+
+    wasteTypeSelect.addEventListener('change', () => {
+        currentFile = wasteTypeSelect.value;
+        wasteTypeLabel.textContent = fileLabels[currentFile];
         loadCSV();
+    });
 
-        function loadCSV() {
-            loadingDiv.style.display = 'block';
-            loadingDiv.textContent = `Ładowanie ${fileLabels[currentFile]}...`;
-            townSelect.disabled = true;
-            townSelect.value = '';
-            datesDiv.style.display = 'none';
+    loadCSV();
 
-            fetch(currentFile)
-                .then(response => {
-                    if (!response.ok) throw new Error(`Nie znaleziono ${currentFile}`);
-                    return response.text();
-                })
-                .then(parseCSV)
-                .catch(error => {
-                    loadingDiv.innerHTML = `<span class="error">Błąd: ${error.message}</span>`;
-                    townSelect.disabled = true;
-                });
-        }
+    function loadCSV() {
+        loadingDiv.style.display = 'block';
+        loadingDiv.textContent = `Ładowanie ${fileLabels[currentFile]}...`;
 
-        function parseCSV(text) {
-            data = text.split('\n').map(line => {
-                if (!line.trim()) return null;
-                const parts = line.split('|');
-                const town = parts[0].trim();
-                const rest = parts.slice(1).join('|').trim();
-                const datesStr = rest.replace(/[^\d\-]/g, '');
-                const dates = [];
-                for (let i = 0; i < datesStr.length; i += 10) {
-                    const dateStr = datesStr.substr(i, 10);
-                    if (dateStr.match(/\d{4}-\d{2}-\d{2}/)) {
-                        dates.push(dateStr);
-                    }
-                }
-                return { town, dates };
-            }).filter(Boolean);
+        townSelect.disabled = true;
+        datesDiv.style.display = 'none';
 
-            const uniqueTowns = [...new Set(data.map(row => row.town))].sort();
-
-            townSelect.innerHTML = '<option value="">Wybierz lokalizację...</option>';
-            uniqueTowns.forEach(town => {
-                const option = document.createElement('option');
-                option.value = town;
-                option.textContent = town;
-                townSelect.appendChild(option);
+        fetch(currentFile)
+            .then(r => {
+                if (!r.ok) throw new Error(`Nie znaleziono ${currentFile}`);
+                return r.text();
+            })
+            .then(parseCSV)
+            .catch(err => {
+                loadingDiv.innerHTML = `<span class="error">${err.message}</span>`;
             });
-            townSelect.disabled = false;
-            loadingDiv.style.display = 'none';
-        }
+    }
 
-        townSelect.addEventListener('change', function() {
-            const selectedTown = this.value;
-            const townData = data.find(row => row.town === selectedTown);
-            if (!townData) return;
+    function parseCSV(text) {
+        data = text.split("\n").map(line => {
+            if (!line.trim()) return null;
 
-            const now = new Date();
-            let nearest = null;
-            let minDiff = Infinity;
+            const town = line.split("|")[0].trim();
+            const dates = line.match(/\d{4}-\d{2}-\d{2}/g) || [];
 
-            townData.dates.forEach(dateStr => {
-                const date = new Date(dateStr + 'T00:00:00');
-                if (date > now) {
-                    const diff = date - now;
-                    if (diff < minDiff) {
-                        minDiff = diff;
-                        nearest = dateStr;
-                    }
-                }
-            });
+            return { town, dates };
+        }).filter(Boolean);
 
-            dateList.innerHTML = '';
-            townData.dates.forEach(dateStr => {
-                const li = document.createElement('li');
-                li.textContent = dateStr;
-                dateList.appendChild(li);
-            });
+        const uniqueTowns = [...new Set(data.map(r => r.town))].sort();
+        townSelect.innerHTML = '<option value="">Wybierz lokalizację...</option>';
 
-            if (nearest) {
-                nearestDiv.textContent = `NAJBLIŻSZY TERMIN: ${nearest} (za ${Math.round(minDiff / (1000*60*60*24))} dni)`;
-            } else {
-                nearestDiv.textContent = 'Brak przyszłych terminów.';
-            }
-
-            datesDiv.style.display = 'block';
+        uniqueTowns.forEach(town => {
+            const opt = document.createElement("option");
+            opt.value = town;
+            opt.textContent = town;
+            townSelect.appendChild(opt);
         });
-    </script>
+
+        townSelect.disabled = false;
+        loadingDiv.style.display = 'none';
+    }
+        townSelect.addEventListener('change', () => {
+        const selectedTown = townSelect.value;
+        const townData = data.find(r => r.town === selectedTown);
+        if (!townData) return;
+
+        const now = new Date();
+        let nearest = null;
+        let minDiff = Infinity;
+
+        townData.dates.forEach(d => {
+            const date = new Date(d + "T00:00:00");
+            if (date > now) {
+                const diff = date - now;
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    nearest = d;
+                }
+            }
+        });
+
+        dateList.innerHTML = "";
+        townData.dates.forEach(d => {
+            const li = document.createElement("li");
+            li.textContent = d;
+            dateList.appendChild(li);
+        });
+
+        nearestDiv.textContent =
+            nearest
+                ? `NAJBLIŻSZY TERMIN: ${nearest} (za ${Math.ceil(minDiff / 86400000)} dni)`
+                : "Brak przyszłych terminów.";
+
+        datesDiv.style.display = "block";
+
+        calendarBtn.style.display = "block";
+    });
+
+
+    /* GENERATOR ICS + alarm i kolor  */
+
+    function generateICS(town, dates) {
+        let type = fileLabels[currentFile]; 
+        let color = icsColors[type];
+
+        let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nCALSCALE:GREGORIAN\nPRODID:-//kobylanka//odpady//PL\n";
+
+        dates.forEach(dateStr => {
+            const dt = dateStr.replace(/-/g, "");
+
+            // alarm 1 dzień wcześniej o 18:00 (na apple 19:00 ;) )
+            const d = new Date(dateStr + "T00:00:00");
+            d.setDate(d.getDate() - 1);
+            d.setHours(18, 0, 0);
+
+            const alert =
+                d.getFullYear().toString().padStart(4, '0') +
+                String(d.getMonth() + 1).padStart(2, '0') +
+                String(d.getDate()).padStart(2, '0') +
+                "T" +
+                String(d.getHours()).padStart(2, '0') +
+                String(d.getMinutes()).padStart(2, '0') +
+                "00";
+// Apple calendar widoczny alert 
+// dla google + apple trzeba uzyc TRIGGER:-P1D (alert nie jest widoczny w wydarzeniu ale podobno dziala tak samo)
+ics +=
+`BEGIN:VEVENT
+DTSTART;VALUE=DATE:${dt}
+SUMMARY:Odbiór odpadów – ${type} (${town})
+COLOR:${color}
+BEGIN:VALARM
+TRIGGER;VALUE=DATE-TIME:${alert}
+ACTION:DISPLAY
+DESCRIPTION:Przypomnienie: jutro odbiór odpadów – ${type}
+END:VALARM
+END:VEVENT
+`;
+        });
+
+        ics += "END:VCALENDAR";
+        return ics;
+    }
+
+    /* button ICS */
+
+    calendarBtn.addEventListener("click", () => {
+        const town = townSelect.value;
+        const townData = data.find(r => r.town === town);
+        if (!townData) return;
+
+        const ics = generateICS(town, townData.dates);
+
+        const blob = new Blob([ics], { type: "text/calendar" });
+        const url = URL.createObjectURL(blob);
+
+        window.location.href = url; // automatyczne otwarcie ICS
+    });
+
+</script>
+
 </body>
 </html>
